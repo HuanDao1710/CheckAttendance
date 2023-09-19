@@ -1,3 +1,5 @@
+import org.apache.commons.lang3.StringUtils;
+
 import java.time.LocalTime;
 
 public class AttendanceRecord {
@@ -6,7 +8,6 @@ public class AttendanceRecord {
 	private String date;
 	private String arrivalTime;
 	private String leaveTime;
-
 	public AttendanceRecord(String date, String arrivalTime, String leaveTime) {
 		this.date = date;
 		this.arrivalTime = arrivalTime;
@@ -16,7 +17,6 @@ public class AttendanceRecord {
 	public void setDate(String date) {
 		this.date = date;
 	}
-
 	public void setArrivalTime(String arrivalTime) {
 		this.arrivalTime = arrivalTime;
 	}
@@ -32,10 +32,12 @@ public class AttendanceRecord {
 	public String getLeaveTime() {
 		return leaveTime;
 	}
-	public boolean isLate() {
-		return LocalTime.parse(arrivalTime).isAfter(LocalTime.parse(TIME_IN));
+	public boolean isBeingLateLeaveEarly() {
+		if(StringUtils.isBlank(leaveTime)) return false;
+		return LocalTime.parse(arrivalTime).isAfter(LocalTime.parse(TIME_IN))
+				|| LocalTime.parse(leaveTime).isBefore(LocalTime.parse(TIME_OUT));
 	}
 	public boolean hasMissedAttendance() {
-		return LocalTime.parse(leaveTime).isBefore(LocalTime.parse(TIME_OUT));
+		return StringUtils.isBlank(leaveTime);
 	}
 }

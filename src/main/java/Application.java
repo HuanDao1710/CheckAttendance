@@ -1,15 +1,16 @@
-import org.apache.commons.io.FileUtils;
+
 import org.openqa.selenium.*;
+import org.apache.commons.collections4.CollectionUtils;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 
 public class Application {
 
@@ -45,10 +46,9 @@ public class Application {
 
         driver.findElement(By.xpath("//span[text()='Bảng Tổng hợp công']")).click();
 
+        Thread.sleep(5000);
         WebElement searchElement = driver.findElement(By.xpath("//input[contains(@placeholder, 'Tìm kiếm nhanh...')]"));
         searchElement.sendKeys(UserConstant.ID);
-
-        Thread.sleep(6000);
         searchElement.sendKeys(Keys.ENTER);
 
         List<AttendanceRecord> listAttendanceRecord =
@@ -58,33 +58,36 @@ public class Application {
                 .filter(Objects::nonNull)
                 .toList();
 
+        List<AttendanceRecord> listLate = listAttendanceRecord.stream()
+            .filter(AttendanceRecord::isBeingLateLeaveEarly)
+            .toList();
+        List<AttendanceRecord> listMissAttendance = listAttendanceRecord.stream()
+            .filter(AttendanceRecord::hasMissedAttendance)
+            .toList();
 
-        WebElement newestNewElement = driver.findElement(By.className("line-post-tiendo"));
+        if(CollectionUtils.isNotEmpty(listLate) || CollectionUtils.isNotEmpty(listMissAttendance)) {
+            System.out.println("Sending Email...");
+            EmailService.sendEmail(listLate, listMissAttendance);
+        }
 
-        String newTitle = newestNewElement.findElement(By.className("clsTitleMXHNew")).getText();
+        if(CollectionUtils.isNotEmpty(listMissAttendance)) {
+            Thread.sleep(1000);
+            //Tự động bổ sung công
+            driver.findElement(By.xpath("//span[text()=' Đơn Từ']")).click();
+            Thread.sleep(1000);
+            driver.findElement(By.xpath("//span[text()='Bổ sung công']")).click();
+            Thread.sleep(1000);
+            for(AttendanceRecord obj : listMissAttendance) {
+                driver.findElement(By.xpath("//*[@class='btn btn-success btn-sm fw-bold']")).click();
+                //
+                System.out.println();
 
-        highlightElement(driver, newestNewElement);
+            }
 
-
-        File screenshotFile = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-
-        // Get the dimensions of the <div> element
-        int divX = newestNewElement.getLocation().getX();
-        int divY = newestNewElement.getLocation().getY();
-        int divWidth = newestNewElement.getSize().getWidth();
-        int divHeight = newestNewElement.getSize().getHeight();
-
-        String fileName = newTitle.replace(" ", "_").toLowerCase(Locale.ROOT) + ".png";
-
-        // Crop the screenshot to include only the <div> element
-        File croppedScreenshotFile = new File("/Users/liam/workspace/falcon-academy/selenium-101/output/" + fileName);
-        FileUtils.copyFile(screenshotFile, croppedScreenshotFile);
-        BufferedImage originalImage = ImageIO.read(screenshotFile);
-        BufferedImage croppedImage = originalImage.getSubimage(divX, divY, divWidth, divHeight);
-        ImageIO.write(croppedImage, "png", croppedScreenshotFile);
+        }
 
         try {
-            Thread.sleep(10_000);
+            Thread.sleep(3_000);
         } catch (Exception e) {
         }
         driver.quit();
@@ -92,9 +95,9 @@ public class Application {
 
     static AttendanceRecord getAttendanceRecord(WebElement tdElement) {
         String date;
-        String DATE_REGEX = "\\b\\d{2}/\\d{2}/\\d{4}\\b";
+        String dateRegex = "\\b\\d{2}/\\d{2}/\\d{4}\\b";
         String onClickAttribute = tdElement.findElement(By.cssSelector("span.time-quet-vao-ra")).getAttribute("onclick");
-        Pattern pattern1 = Pattern.compile(DATE_REGEX);
+        Pattern pattern1 = Pattern.compile(dateRegex);
         Matcher matcher1 = pattern1.matcher(onClickAttribute);
         if(matcher1.find()) {
             date = matcher1.group();
@@ -102,11 +105,11 @@ public class Application {
             return null;
         }
 
-        String TIME_REGEX = "^\\d{2}:\\d{2}";
+        String timeRegex = "^\\d{2}:\\d{2}.*";
         String text = tdElement.findElement(By.cssSelector("span.time-quet-vao-ra span")).getText().trim();
-        Pattern pattern2 = Pattern.compile(TIME_REGEX);
+        Pattern pattern2 = Pattern.compile(timeRegex);
         Matcher matcher2 = pattern2.matcher(text);
-        if(!matcher2.matches()) {
+        if(!matcher2.find()) {
             return null;
         }
 
