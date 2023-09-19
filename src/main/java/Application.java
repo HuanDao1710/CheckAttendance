@@ -102,7 +102,7 @@ public class Application {
             return null;
         }
 
-        String TIME_REGEX = "\\d{2}:\\d{2}\\n\\d{2}:\\d{2}";
+        String TIME_REGEX = "^\\d{2}:\\d{2}";
         String text = tdElement.findElement(By.cssSelector("span.time-quet-vao-ra span")).getText().trim();
         Pattern pattern2 = Pattern.compile(TIME_REGEX);
         Matcher matcher2 = pattern2.matcher(text);
@@ -111,6 +111,9 @@ public class Application {
         }
 
         String[] times =text.split("\n");
+        if(times.length == 1) {
+            return new AttendanceRecord(date, times[0], "");
+        }
         return new AttendanceRecord(date, times[0], times[1]);
     }
 

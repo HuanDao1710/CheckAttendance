@@ -7,7 +7,6 @@ public class AttendanceRecord {
 	private String arrivalTime;
 	private String leaveTime;
 
-
 	public AttendanceRecord(String date, String arrivalTime, String leaveTime) {
 		this.date = date;
 		this.arrivalTime = arrivalTime;
