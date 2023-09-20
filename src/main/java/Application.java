@@ -1,24 +1,19 @@
-
 import org.openqa.selenium.*;
 import org.apache.commons.collections4.CollectionUtils;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.support.ui.Select;
 import java.io.File;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
 public class Application {
 
     static final String CHROME_DRIVER_PATH = System.getProperty("user.dir") + File.separator + "drivers" + File.separator + "chromedriver";
-    // window
-    //static final String FIREFOX_DRIVER_PATH = System.getProperty("user.dir") + File.separator + "drivers" + File.separator + "geckodriver.exe";
-    public static void main(String[] args) throws IOException,
-        InterruptedException {
+    public static void main(String[] args) throws InterruptedException {
 
         System.setProperty("webdriver.gecko.driver", CHROME_DRIVER_PATH);
 
@@ -42,22 +37,20 @@ public class Application {
 
         driver.findElement(By.id("loginButton")).click();
 
-        driver.findElement(By.xpath("//span[text()=' Chấm Công']")).click();
-
-        driver.findElement(By.xpath("//span[text()='Bảng Tổng hợp công']")).click();
+        driver.get("https://hrm.falcongames.com/BangCongDong/Index?tab=%23bangchamcong");
 
         Thread.sleep(5000);
         WebElement searchElement = driver.findElement(By.xpath("//input[contains(@placeholder, 'Tìm kiếm nhanh...')]"));
         searchElement.sendKeys(UserConstant.ID);
         searchElement.sendKeys(Keys.ENTER);
 
+        System.out.println("Getting data...");
         List<AttendanceRecord> listAttendanceRecord =
             driver.findElements(By.cssSelector("td.text-center.font-size"))
             .stream()
             .map(Application::getAttendanceRecord)
                 .filter(Objects::nonNull)
                 .toList();
-
         List<AttendanceRecord> listLate = listAttendanceRecord.stream()
             .filter(AttendanceRecord::isBeingLateLeaveEarly)
             .toList();
@@ -71,24 +64,17 @@ public class Application {
         }
 
         if(CollectionUtils.isNotEmpty(listMissAttendance)) {
-            Thread.sleep(1000);
             //Tự động bổ sung công
-            driver.findElement(By.xpath("//span[text()=' Đơn Từ']")).click();
-            Thread.sleep(1000);
-            driver.findElement(By.xpath("//span[text()='Bổ sung công']")).click();
-            Thread.sleep(1000);
             for(AttendanceRecord obj : listMissAttendance) {
-                driver.findElement(By.xpath("//*[@class='btn btn-success btn-sm fw-bold']")).click();
-                //
-                System.out.println();
-
+                Thread.sleep(1000);
+                driver.get("https://hrm.falcongames.com/BoSungCong/Create");
+                var inputElement = driver.findElement(By.id("txtNgayLamViec"));
+                String script = "arguments[0].removeAttribute('disabled'); arguments[0].value = '"+obj.getDate()+"';";
+                ((JavascriptExecutor) driver).executeScript(script, inputElement);
+                new Select(driver.findElement(By.id("lyDoDieuChinh"))).selectByValue("BSC_QuenChamCong");
+                //driver.findElement(By.className("btnXuLyPhieuNew")).click();
+                System.out.println("đã bổ sung công cho ngày: " + obj.getDate());
             }
-
-        }
-
-        try {
-            Thread.sleep(3_000);
-        } catch (Exception e) {
         }
         driver.quit();
     }
@@ -104,7 +90,6 @@ public class Application {
         } else {
             return null;
         }
-
         String timeRegex = "^\\d{2}:\\d{2}.*";
         String text = tdElement.findElement(By.cssSelector("span.time-quet-vao-ra span")).getText().trim();
         Pattern pattern2 = Pattern.compile(timeRegex);
@@ -112,24 +97,10 @@ public class Application {
         if(!matcher2.find()) {
             return null;
         }
-
         String[] times =text.split("\n");
         if(times.length == 1) {
             return new AttendanceRecord(date, times[0], "");
         }
         return new AttendanceRecord(date, times[0], times[1]);
-    }
-
-    static void quitDriverWhenShutdown(WebDriver driver) {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if (driver != null) {
-                driver.quit();
-            }
-        }));
-    }
-
-    public static void highlightElement(WebDriver driver, WebElement element) {
-        JavascriptExecutor js = (JavascriptExecutor) driver;
-        js.executeScript("arguments[0].style.border='3px solid yellow'", element);
     }
 }
